@@ -31,8 +31,7 @@ https://muse-map.vercel.app/
 
 ## Payments
 
-- Monthly plan: $5/month
-- Annual plan: $50/year
+- Monthly plan: $25/month
 - Powered by Stripe Checkout
 - Subscription management via Stripe Billing Portal
 
