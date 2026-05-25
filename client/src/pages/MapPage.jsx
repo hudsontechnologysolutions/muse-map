@@ -93,7 +93,6 @@ export default function MapPage() {
         const params = new URLSearchParams({
           category:     filters.category,
           neighborhood: filters.neighborhood,
-          upcoming:     'true',
         });
         const res  = await fetch(`${API_BASE}/api/events?${params}`);
         const data = await res.json();
