@@ -36,10 +36,14 @@ router.get('/', async (req, res) => {
     if (isFree === 'true')  filter.isFree = true;
     if (isFree === 'false') filter.isFree = false;
 
-    // Map always requests upcoming only — filter out past events
     const { upcoming } = req.query;
     if (upcoming === 'true') {
-      filter.date = { ...filter.date, $gte: new Date() };
+      const now = new Date();
+      filter.$or = [
+        { date: { ...filter.date, $gte: now } },
+        { endDate: { $gte: now } },
+      ];
+      delete filter.date;
     }
 
     const events = await Event.find(filter)
