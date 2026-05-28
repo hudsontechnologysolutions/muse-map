@@ -118,26 +118,6 @@ router.put('/profile', protect, async (req, res) => {
   }
 });
 
-// PUT /api/auth/role — upgrade attendee → organizer (one-way for now)
-router.put('/role', protect, async (req, res) => {
-  try {
-    const { role } = req.body;
-    if (role !== 'organizer') {
-      return res.status(400).json({ message: 'Only upgrades to organizer are supported.' });
-    }
 
-    const user = await User.findById(req.user._id);
-    if (user.role === 'organizer') {
-      return res.json({ message: 'Already an organizer', user: formatUser(user) });
-    }
-
-    user.role = 'organizer';
-    await user.save({ validateBeforeSave: false });
-
-    res.json({ message: 'Upgraded to organizer', user: formatUser(user) });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
 
 module.exports = router;

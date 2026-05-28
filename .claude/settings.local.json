@@ -8,7 +8,10 @@
       "Bash(chmod +w /c/Users/robhe/OneDrive/Desktop/Portfolio/muse-map/server/routes/stripe.js)",
       "Bash(chmod +w /c/Users/robhe/OneDrive/Desktop/Portfolio/muse-map/server/.env)",
       "Bash(git check-ignore:*)",
-      "Bash(chmod +w /c/Users/robhe/OneDrive/Desktop/Portfolio/muse-map/client/src/index.css /c/Users/robhe/OneDrive/Desktop/Portfolio/muse-map/client/src/pages/CalendarPage.css)"
+      "Bash(chmod +w /c/Users/robhe/OneDrive/Desktop/Portfolio/muse-map/client/src/index.css /c/Users/robhe/OneDrive/Desktop/Portfolio/muse-map/client/src/pages/CalendarPage.css)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\robhe\\\\OneDrive\\\\Desktop\\\\Portfolio\\\\muse-map\" -Recurse -Force)",
+      "Bash(Select-Object -First 50)",
+      "Bash(Format-Table FullName)"
     ]
   }
 }

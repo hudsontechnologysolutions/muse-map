@@ -13,28 +13,7 @@ router.post('/create-checkout-session', protect, async (req, res) => {
     const plan = 'monthly'; // only monthly organizer plan is supported
     const priceId = process.env.STRIPE_PRICE_MONTHLY;
 
-    // 🔍 TEMP DEBUG — remove once $25 price is confirmed working
-    console.log('[stripe] STRIPE_PRICE_MONTHLY =', priceId);
-    try {
-      const priceObj = await stripe.prices.retrieve(priceId);
-      console.log('[stripe] price details:', {
-        id: priceObj.id,
-        amount: priceObj.unit_amount, // in cents — $25 = 2500, $5 = 500
-        currency: priceObj.currency,
-        interval: priceObj.recurring?.interval,
-        product: priceObj.product,
-        active: priceObj.active,
-      });
-    } catch (lookupErr) {
-      console.error('[stripe] price lookup failed:', lookupErr.message);
-    }
-
     const user = await User.findById(req.user._id);
-
-    // Only organizers can subscribe
-    if (user.role !== 'organizer') {
-      return res.status(403).json({ message: 'Only organizer accounts can subscribe.' });
-    }
 
     // Reuse existing Stripe customer, or create a new one.
     // If the stored customer ID is from a different Stripe mode (test vs live)
@@ -110,8 +89,8 @@ router.post('/webhook', async (req, res) => {
 
         if (userId && session.subscription) {
           const subscription = await stripe.subscriptions.retrieve(session.subscription);
-          console.log('current_period_end:', subscription.current_period_end);
           await User.findByIdAndUpdate(userId, {
+            role: 'organizer',
             stripeSubscriptionId: subscription.id,
             subscriptionStatus: 'active',
             subscriptionPlan: plan,
@@ -119,7 +98,6 @@ router.post('/webhook', async (req, res) => {
               ? new Date(subscription.current_period_end * 1000)
               : null,
           });
-          console.log(`✅ Subscription activated for user ${userId}`);
         }
         break;
       }

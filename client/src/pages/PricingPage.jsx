@@ -52,21 +52,6 @@ export default function PricingPage() {
     setError('');
 
     try {
-      // Attendee → upgrade role to organizer first, then checkout
-      if (user.role !== 'organizer') {
-        const upgradeRes = await authFetch('/api/auth/role', {
-          method: 'PUT',
-          body: JSON.stringify({ role: 'organizer' }),
-        });
-        const upgradeData = await upgradeRes.json();
-        if (!upgradeRes.ok) {
-          setError(upgradeData.message || 'Could not upgrade account');
-          setLoading(false);
-          return;
-        }
-        login(upgradeData.user, token);
-      }
-
       await startCheckout();
     } catch {
       setError('Network error — please try again');
