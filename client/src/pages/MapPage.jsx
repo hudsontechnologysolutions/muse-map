@@ -61,6 +61,77 @@ const DEFAULT_FILTERS = {
   price:        'all',
 };
 
+/* ── Helpers for same-location handling ───────────── */
+
+// Group geocoded events by rounded coordinate (handles tiny geocode jitter).
+function groupEventsByLocation(eventsWithCoords) {
+  const groups = new Map();
+  for (const { event, coords } of eventsWithCoords) {
+    const key = `${coords.lat.toFixed(5)},${coords.lng.toFixed(5)}`;
+    if (!groups.has(key)) groups.set(key, { coords, events: [] });
+    groups.get(key).events.push(event);
+  }
+  return Array.from(groups.values());
+}
+
+// Pin SVG with an optional numbered badge when multiple events share a venue.
+function createPinHtml(color, count) {
+  const svg = createPinSvg(color);
+  if (count <= 1) return svg;
+  return `
+    <div class="map-pin-stack">
+      ${svg}
+      <span class="map-pin-badge">${count}</span>
+    </div>
+  `;
+}
+
+function formatPopupDate(d) {
+  return new Date(d).toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric',
+  });
+}
+
+function singleEventPopup(event) {
+  const date = formatPopupDate(event.date);
+  const priceLabel = event.isFree !== false
+    ? '<span class="map-popup-free">Free</span>'
+    : event.ticketPrice != null
+      ? `<span class="map-popup-paid">$${Number(event.ticketPrice).toFixed(2)}</span>`
+      : '<span class="map-popup-paid">Paid</span>';
+  return `
+    <div class="map-popup">
+      <span class="map-popup-cat">${event.category}</span>
+      <div class="map-popup-title">${event.title}</div>
+      <div class="map-popup-date">${date} · ${priceLabel}</div>
+      <div class="map-popup-loc">📍 ${event.location}</div>
+      <a href="/events/${event._id}" class="map-popup-link">View Event →</a>
+    </div>
+  `;
+}
+
+function multiEventPopup(events) {
+  const venue = events[0].location;
+  const items = events
+    .slice()
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .map(e => `
+      <li class="map-popup-list-item">
+        <a href="/events/${e._id}">
+          <strong>${e.title}</strong>
+          <span>${formatPopupDate(e.date)} · ${e.category}</span>
+        </a>
+      </li>
+    `).join('');
+  return `
+    <div class="map-popup map-popup--multi">
+      <div class="map-popup-loc">📍 ${venue}</div>
+      <div class="map-popup-title">${events.length} events at this venue</div>
+      <ul class="map-popup-list">${items}</ul>
+    </div>
+  `;
+}
+
 export default function MapPage() {
   const mapRef      = useRef(null);
   const leafletMap  = useRef(null);
@@ -133,43 +204,47 @@ export default function MapPage() {
     const placeMarkers = async () => {
       setGeocoding(true);
       let failed = 0;
+
+      // Step 1: geocode every event up front (keeping the existing Nominatim rate-limit).
+      const eventsWithCoords = [];
       for (const event of events) {
         const coords = await geocode(event.location);
         if (!coords) { failed++; continue; }
+        eventsWithCoords.push({ event, coords });
+        await new Promise(r => setTimeout(r, 1100));
+      }
 
-        const color = CATEGORY_COLORS[event.category] || '#888';
-        const icon  = L.divIcon({
-          html: createPinSvg(color),
+      // Step 2: collapse events that share a venue into one pin per location.
+      const groups = groupEventsByLocation(eventsWithCoords);
+
+      // Step 3: render one marker per group. Multi-event groups get a numbered badge.
+      for (const group of groups) {
+        const primary = group.events[0];
+        const color   = CATEGORY_COLORS[primary.category] || '#888';
+        const icon    = L.divIcon({
+          html: createPinHtml(color, group.events.length),
           className: 'map-pin-icon',
           iconSize: [26, 34], iconAnchor: [13, 34], popupAnchor: [0, -36],
         });
 
-        const date = new Date(event.date).toLocaleDateString('en-US', {
-          weekday: 'short', month: 'short', day: 'numeric',
+        const popupHtml = group.events.length === 1
+          ? singleEventPopup(primary)
+          : multiEventPopup(group.events);
+
+        const marker = L.marker([group.coords.lat, group.coords.lng], { icon })
+          .addTo(leafletMap.current)
+          .bindPopup(popupHtml, { maxWidth: 280, className: 'map-popup-wrapper' });
+
+        marker.on('click', () => {
+          // Single → existing single-event sidebar. Group → list-view sidebar.
+          setSelectedEvent(
+            group.events.length === 1 ? primary : { __group: group.events }
+          );
         });
 
-        const priceLabel = event.isFree !== false
-          ? '<span class="map-popup-free">Free</span>'
-          : event.ticketPrice != null
-            ? `<span class="map-popup-paid">$${Number(event.ticketPrice).toFixed(2)}</span>`
-            : '<span class="map-popup-paid">Paid</span>';
-
-        const marker = L.marker([coords.lat, coords.lng], { icon })
-          .addTo(leafletMap.current)
-          .bindPopup(`
-            <div class="map-popup">
-              <span class="map-popup-cat">${event.category}</span>
-              <div class="map-popup-title">${event.title}</div>
-              <div class="map-popup-date">${date} · ${priceLabel}</div>
-              <div class="map-popup-loc">📍 ${event.location}</div>
-              <a href="/events/${event._id}" class="map-popup-link">View Event →</a>
-            </div>
-          `, { maxWidth: 240, className: 'map-popup-wrapper' });
-
-        marker.on('click', () => setSelectedEvent(event));
         markersRef.current.push(marker);
-        await new Promise(r => setTimeout(r, 1100));
       }
+
       setFailedCount(failed);
       setGeocoding(false);
     };
@@ -214,7 +289,31 @@ export default function MapPage() {
           <div ref={mapRef} className="map-container" />
         </div>
 
-        {selectedEvent && (
+        {selectedEvent && selectedEvent.__group ? (
+          <div className="map-sidebar">
+            <button className="map-sidebar-close" onClick={() => setSelectedEvent(null)}>✕</button>
+            <h2 className="map-sidebar-title">
+              {selectedEvent.__group.length} events at this venue
+            </h2>
+            <p className="map-sidebar-loc">📍 {selectedEvent.__group[0].location}</p>
+            <ul className="map-sidebar-list">
+              {selectedEvent.__group
+                .slice()
+                .sort((a, b) => new Date(a.date) - new Date(b.date))
+                .map(e => (
+                  <li key={e._id}>
+                    <Link to={`/events/${e._id}`}>
+                      <span className={`badge cat-${e.category}`}>{e.category}</span>
+                      <strong>{e.title}</strong>
+                      <span className="map-sidebar-list-meta">
+                        {formatDate(e.date)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        ) : selectedEvent ? (
           <div className="map-sidebar">
             <button className="map-sidebar-close" onClick={() => setSelectedEvent(null)}>✕</button>
             <span className={`badge cat-${selectedEvent.category}`}>{selectedEvent.category}</span>
@@ -243,7 +342,7 @@ export default function MapPage() {
               View Event
             </Link>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
