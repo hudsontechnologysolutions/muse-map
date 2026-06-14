@@ -1,6 +1,6 @@
 # Muse Map
 
-Identified operational and revenue bottlenecks for NJ nonprofits and small businesses, then designed and shipped custom web apps to solve them, while also leveraging AI tools such as Claude Code. Created a subscription platform for a nonprofit client with no digital revenue stream \& an automation tool saving 15 hours monthly for an affordable housing professional.
+Local artists had no centralized way to surface cultural events, and the partnering nonprofit had no recurring revenue stream. Designed and deployed a subscription platform under Jersey City's elected Poet Laureate, featuring an interactive map, event calendar, and Stripe-integrated paywalled tiers from $25/month.
 
 https://muse-map.vercel.app/
 
