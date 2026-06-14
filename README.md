@@ -1,6 +1,6 @@
 # Muse Map
 
-A full-stack cultural event platform where users can create, discover, and register for local events across Jersey City with a calendar, list, and interactive map view.
+Identified operational and revenue bottlenecks for NJ nonprofits and small businesses, then designed and shipped custom web apps to solve them, while also leveraging AI tools such as Claude Code. Created a subscription platform for a nonprofit client with no digital revenue stream \& an automation tool saving 15 hours monthly for an affordable housing professional.
 
 https://muse-map.vercel.app/
 
